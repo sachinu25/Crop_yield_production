@@ -1,0 +1,65 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# =========================
+# Virtual Environments
+# =========================
+myenv/
+venv/
+.venv/
+env/
+
+# =========================
+# Jupyter Notebook
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =========================
+# CatBoost auto-generated
+# =========================
+catboost_info/
+
+# =========================
+# Environment variables
+# =========================
+.env
+
+# =========================
+# OS Files
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Large data files (use Git LFS or DVC instead)
+# =========================
+data/raw/weather/
+*.h5
+
+# =========================
+# Logs & Testing
+# =========================
+logs/
+*.log
+.pytest_cache/
+.coverage
+coverage.xml

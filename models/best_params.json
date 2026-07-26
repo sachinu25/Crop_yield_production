@@ -1,0 +1,39 @@
+{
+  "LightGBM": {
+    "n_estimators": 4388,
+    "num_leaves": 446,
+    "max_depth": 15,
+    "learning_rate": 0.007870145213938924,
+    "min_child_samples": 85,
+    "feature_fraction": 0.37833960730688454,
+    "bagging_fraction": 0.8309273708674778,
+    "bagging_freq": 6,
+    "lambda_l1": 0.00010165624765834165,
+    "lambda_l2": 9.374975114687406e-08,
+    "max_bin": 168
+  },
+  "CatBoost": {
+    "iterations": 3786,
+    "depth": 8,
+    "learning_rate": 0.07332399202862067,
+    "l2_leaf_reg": 23.099367373513576,
+    "subsample": 0.9200116523638655,
+    "random_strength": 0.41053429686374326,
+    "bagging_temperature": 3.5987443865985447,
+    "border_count": 207,
+    "min_data_in_leaf": 96
+  },
+  "XGBoost": {
+    "n_estimators": 1688,
+    "max_depth": 10,
+    "learning_rate": 0.020588364687004385,
+    "subsample": 0.6442573190262904,
+    "colsample_bytree": 0.3689107284106734,
+    "reg_lambda": 4.3039467273638036e-08,
+    "reg_alpha": 2.7872252327166426e-07,
+    "min_child_weight": 80,
+    "gamma": 0.019135540612572277,
+    "max_bin": 176
+  },
+  "best_model": "LightGBM"
+}
