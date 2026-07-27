@@ -275,10 +275,10 @@ Licensed under the **MIT License**.
 
 ## 👤 Author
 
-- **Author Name**
-- **GitHub:** [GitHub Profile](https://github.com/your-username)
-- **LinkedIn:** [LinkedIn Profile](https://www.linkedin.com/in/your-profile)
-- **Email:** your.email@example.com
+- **Author Name** Sachin Upadhyay
+- **GitHub:** [GitHub Profile](https://github.com/sachinu25/)
+- **LinkedIn:** [LinkedIn Profile](https://www.linkedin.com/in/sachinu25/)
+
 
 ---
 
