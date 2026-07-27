@@ -1,170 +1,287 @@
-# 🌾 Indian Agriculture — Crop Yield Prediction System
+# 🌾 AI-Powered Crop Yield Prediction System
 
-Predict crop yield (tonnes/hectare) for Indian agriculture using historical crop production data (2001–2020), real-time weather data from [Open-Meteo API](https://open-meteo.com/), and a **CatBoost** machine learning model.
+<div align="center">
 
-## 📋 Table of Contents
+<img src="https://img.shields.io/badge/AI%20Powered-Crop%20Yield%20Prediction-2E7D32?style=for-the-badge&logo=leaflet&logoColor=white" alt="AI Powered Crop Yield Prediction" />
 
-- [Features](#features)
-- [Architecture](#architecture)
-- [Project Structure](#project-structure)
-- [Tech Stack](#tech-stack)
-- [Setup & Installation](#setup--installation)
-- [Usage](#usage)
-- [Data Sources](#data-sources)
-- [Screenshots](#screenshots)
-- [Results](#results)
-- [Future Improvements](#future-improvements)
-- [License](#license)
+<p><strong>Production-ready machine learning platform for predicting Indian crop yield using historical agriculture + weather intelligence.</strong></p>
+
+<p>
+  <img src="https://img.shields.io/badge/Python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/Streamlit-App-FF4B4B?style=flat-square&logo=streamlit&logoColor=white" alt="Streamlit" />
+  <img src="https://img.shields.io/badge/CatBoost-Regressor-FFCC00?style=flat-square" alt="CatBoost" />
+  <img src="https://img.shields.io/badge/Machine%20Learning-Enabled-6A1B9A?style=flat-square" alt="Machine Learning" />
+  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License" />
+  <img src="https://img.shields.io/github/stars/sachinu25/Crop_yield_production?style=flat-square" alt="GitHub Stars" />
+  <img src="https://img.shields.io/badge/Open%20Source-Yes-0A66C2?style=flat-square" alt="Open Source" />
+  <img src="https://img.shields.io/badge/Responsive-UI-009688?style=flat-square" alt="Responsive" />
+  <img src="https://img.shields.io/badge/Production-Ready-1E88E5?style=flat-square" alt="Production Ready" />
+</p>
+
+</div>
+
+---
+
+## 📌 Project Overview
+
+### Problem Statement
+Agricultural productivity planning is often reactive and fragmented due to inconsistent access to unified crop, geography, and weather intelligence. Stakeholders need district-level yield forecasting to improve decisions before sowing, during cultivation, and before harvest.
+
+### Solution
+This project delivers an end-to-end **AI-powered crop yield prediction system** that combines:
+- Historical APY (Area-Production-Yield) records
+- District/state geospatial and seasonal context
+- Historical weather signals from Open-Meteo
+- A finalized CatBoost-based inference pipeline
+
+The system provides both:
+- **Streamlit dashboard** (interactive analytics experience)
+- **Flask web application** (lightweight production-style app)
+
+### Business Impact
+- Better crop planning and resource allocation
+- Improved risk assessment for climate variability
+- Faster, explainable decisions for yield-sensitive operations
+- Strong baseline for AgriTech productization and policy support
+
+### Agriculture Use Cases
+| Stakeholder | Value Delivered |
+|---|---|
+| Government Bodies | District-level planning, subsidy strategy support, regional yield monitoring |
+| Farmers & FPOs | Crop selection insights, expected yield benchmarking, season planning |
+| Researchers | Reproducible ML pipeline, feature analysis, weather-yield relationship exploration |
+| AgriTech Companies | Product integration foundation for advisory, input planning, and intelligence dashboards |
+
+---
 
 ## ✨ Features
 
-- **Crop Yield Prediction**: Predict yield for 90+ crops across 685 districts in 33 Indian states
-- **Live Weather Integration**: Fetches real-time historical weather data via Open-Meteo API
-- **Dual Frontend**: Both Flask web app and Streamlit interactive dashboard
-- **Unit Conversion**: Supports 22 Indian land measurement units (hectare, bigha, kanal, etc.)
-- **Multi-Crop Comparison**: Predict and compare yields for multiple crops simultaneously
-- **Weather Visualization**: Interactive weather trend charts with Plotly.js
-- **Model Interpretability**: SHAP explanations integrated directly into the dashboard
+| Category | Feature | Description |
+|---|---|---|
+| Prediction | AI Crop Yield Prediction | Predict crop yield (tonnes/hectare) for selected crop, district, season, and area |
+| Weather | Historical Weather Integration | Uses Open-Meteo historical signals for climate-aware context |
+| ML | Feature Engineering | Uses engineered agri, seasonal, and geo-linked features in finalized pipeline |
+| Analytics | Interactive Analytics | Rich exploratory views for comparisons, trends, and distributions |
+| Reporting | PDF Reports | Export prediction summaries as shareable reports |
+| Data Export | CSV Export | Download predictions/history for external analysis |
+| Tracking | Prediction History | Persisted record of prior inferences for quick lookup |
+| Explainability | Model Explainability | SHAP-based feature impact analysis for transparent predictions |
+| Dashboard | Weather Dashboard | Consolidated weather overview for selected context |
+| UI | Responsive UI | Works across desktop/laptop/mobile form factors |
+| UI | Light/Dark Mode | Theme support with accessibility-oriented contrast |
 
-## 🏗️ Architecture
+---
 
-```mermaid
-graph LR
-    subgraph "Data Layer"
-        A[("Parquet Cache\n(211K rows)")] 
-        B[("CatBoost Model\n(.cbm)")]
-    end
+## 🧰 Technology Stack
 
-    subgraph "Service Layer"
-        D["Data Service"]
-        E["Prediction Service & SHAP"]
-        I["Weather Service (Open-Meteo)"]
-    end
-
-    subgraph "Presentation Layer"
-        G["Streamlit Dashboard"]
-        H["Flask Web App"]
-    end
-    
-    B --> E
-    A --> D
-    D --> G
-    E --> G
-    I --> G
-    A --> H
-```
-
-## 📁 Project Structure
-
-```
-Indian_Agriculture-main/
-├── data/
-│   ├── raw/                    # Original source data (APY datasets)
-│   └── processed/              # Final clean data for apps
-├── models/                     # Trained CatBoost model (.cbm) & meta
-├── checkpoints/                # Encoded datasets and splits (Parquet/Npy)
-├── notebooks/
-│   ├── 01_EDA.ipynb                   # Exploratory Data Analysis
-│   ├── 02_Data_Preprocessing.ipynb    # Feature Scaling & Target Transforms
-│   ├── 03_Feature_Engineering.ipynb   # Geo-clustering & Feature Creation
-│   ├── 04_Model_Training.ipynb        # CatBoost Training Pipeline
-│   ├── 05_Model_Comparison.ipynb      # Leaderboard evaluation
-│   ├── 06_SHAP_Analysis.ipynb         # SHAP TreeExplainer Interpretation
-│   └── 07_Final_Evaluation.ipynb      # Residual Analysis & Errors
-├── src/
-│   ├── config/                 # Environment-based configuration
-│   ├── services/               # Weather API, ML Inference, Data Lookups
-│   ├── utils/                  # Land-area unit conversions, PDF exports
-│   ├── flask_app/              # Flask web application
-│   └── streamlit_app/          # Streamlit dashboard
-├── tests/                      # Test suite
-├── docs/                       # Documentation
-├── .env.example                # Environment variable template
-├── .gitignore
-├── requirements.txt
-└── README.md
-```
-
-## 🛠️ Tech Stack
-
-| Layer | Technology |
+| Layer | Tools/Frameworks |
 |---|---|
-| ML Model | CatBoost Regressor, SHAP |
-| Backend | Flask, Gunicorn |
-| Dashboard | Streamlit, Plotly.js |
-| Data | Pandas, NumPy, Parquet |
-| Weather API | Open-Meteo (Historical Archive) |
-| Config | python-dotenv |
+| Frontend | Streamlit, HTML/CSS, Plotly |
+| Backend | Flask, Python services |
+| Machine Learning | CatBoost Regressor, SHAP |
+| Visualization | Plotly, Streamlit chart components |
+| Data Handling | Pandas, NumPy, Parquet |
+| Configuration | python-dotenv |
+| Deployment (App Runtime) | Gunicorn-compatible Flask app, Streamlit runtime |
 
-## 🚀 Setup & Installation
+---
 
-### Prerequisites
-- Python 3.9+
-- pip
+## 🤖 Machine Learning Pipeline
 
-### Steps
+> **Note:** Model training logic is finalized. This repository focuses on production-quality inference, analytics, and presentation.
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/your-username/Indian_Agriculture.git
-cd Indian_Agriculture-main
+1. **Dataset Ingestion**
+   - APY and related historical agriculture records
+   - Weather/context enrichment inputs
+2. **Data Cleaning**
+   - Missing value handling
+   - Type normalization and consistency checks
+3. **Feature Engineering**
+   - Geo, crop, seasonal, and weather-derived features
+4. **Model Training (Finalized)**
+   - CatBoost Regressor selected from comparative experiments
+5. **Prediction Inference**
+   - District/crop/season-aware yield prediction
+6. **Visualization Layer**
+   - Comparative and temporal charts
+7. **Explainability**
+   - SHAP insights for local/global feature contribution
 
-# 2. Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or: venv\Scripts\activate  # Windows
+---
 
-# 3. Install dependencies
-pip install -r requirements.txt
+## 🧪 Feature Engineering Highlights
 
-# 4. Configure environment
-cp .env.example .env
-# Edit .env and enter any required configurations
+The pipeline includes engineered features spanning:
+
+- **Geospatial context**: state/district encoded intelligence
+- **Crop-level encodings**: crop identity and category sensitivity
+- **Seasonal signals**: seasonality and historical performance tendencies
+- **Weather-linked attributes**: climate summaries aligned to crop context
+- **Area-production relationships**: transformed and normalized agri scale indicators
+- **Interaction patterns**: selected combined signals for nonlinear model learning
+
+> Exact feature columns and transformations are available in notebooks and processing scripts.
+
+---
+
+## 📈 Model Performance
+
+From the current project documentation and evaluation artifacts:
+
+| Metric | Value |
+|---|---|
+| R² Score | ~0.6047 |
+| RMSE | ~10.01 |
+| MAE | ~1.42 |
+
+### Metric Interpretation
+- **R² (Coefficient of Determination):** Explains how much variance in yield is captured by the model. A value near 0.60 indicates meaningful predictive signal in a high-variability domain like agriculture.
+- **RMSE (Root Mean Squared Error):** Penalizes larger errors more strongly and reflects prediction spread around true yield.
+- **MAE (Mean Absolute Error):** Average absolute prediction deviation; easier to interpret in practical yield terms.
+
+### CV Performance
+Cross-validation details should be sourced from model-training artifacts/checkpoints where available. If you add the exact CV table (fold-wise), update this section for publication-grade reporting.
+
+---
+
+## 🗂️ Project Structure
+
+```text
+Crop_yield_production/
+├── checkpoints/                 # Encoded datasets, train/test split artifacts
+├── data/
+│   ├── raw/                     # Original APY and source datasets
+│   └── processed/               # Clean, model-consumable datasets
+├── docs/                        # Supporting documentation and references
+├── models/                      # Finalized CatBoost model and metadata
+├── notebooks/
+│   ├── 01_EDA.ipynb
+│   ├── 02_Data_Preprocessing.ipynb
+│   ├── 03_Feature_Engineering.ipynb
+│   ├── 04_Model_Training.ipynb
+│   ├── 05_Model_Comparison.ipynb
+│   ├── 06_SHAP_Analysis.ipynb
+│   └── 07_Final_Evaluation.ipynb
+├── src/
+│   ├── config/                  # Environment and runtime configuration
+│   ├── flask_app/               # Flask application modules
+│   ├── services/                # Prediction, weather, and data services
+│   ├── streamlit_app/           # Streamlit dashboard application
+│   └── utils/                   # Utility helpers (units, exports, formatting)
+├── tests/                       # Unit/integration tests
+├── .env.example                 # Environment variable template
+├── requirements.txt             # Python dependencies
+└── README.md                    # Project documentation
 ```
 
-## 📖 Usage
+---
 
-### Streamlit Dashboard (Recommended)
+## 🚀 Installation & Setup
 
+### 1) Clone Repository
+```bash
+git clone https://github.com/sachinu25/Crop_yield_production.git
+cd Crop_yield_production
+```
+
+### 2) Create Virtual Environment
+```bash
+python -m venv .venv
+source .venv/bin/activate        # Linux/Mac
+# .venv\Scripts\activate         # Windows
+```
+
+### 3) Install Requirements
+```bash
+pip install -r requirements.txt
+```
+
+### 4) Configure Environment
+```bash
+cp .env.example .env
+# Update values as required
+```
+
+### 5) Run Applications
+
+#### Streamlit (Recommended)
 ```bash
 streamlit run src/streamlit_app/app.py
-# Opens automatically in browser
 ```
 
-### Flask Web App
-
+#### Flask
 ```bash
 python -m src.flask_app.app
-# Open http://localhost:5000
 ```
 
-## 📸 Screenshots
+### 6) Deployment Notes
+- Streamlit Cloud / containerized runtime for dashboard deployment
+- Gunicorn + reverse proxy for Flask production serving
+- Add CI/CD and secrets management for enterprise deployment
 
-*Include screenshots of the Streamlit dashboard, predictions, weather analytics, and SHAP visualisations here.*
+---
 
-## 📈 Results
+## 🖼️ Screenshots
 
-The final machine learning pipeline uses **CatBoost Regressor** trained on a carefully engineered 60-feature dataset (incorporating historical weather and geo-clusters).
-- **R² Score**: ~ 0.6047
-- **RMSE**: ~ 10.01
-- **MAE**: ~ 1.42
+Add screenshots in the following paths:
 
-## 🔮 Future Improvements
+- `assets/screenshots/home.png`
+- `assets/screenshots/prediction.png`
+- `assets/screenshots/analytics.png`
+- `assets/screenshots/weather.png`
+- `assets/screenshots/history.png`
+- `assets/screenshots/feature_importance.png`
 
-- Add support for real-time future weather forecasting.
-- Integrate soil health data APIs for improved feature representation.
-- Containerize the application via Docker for easier deployment.
-- CI/CD pipeline implementation.
+Example markdown block:
 
-## 📊 Data Sources
+```md
+![Home](assets/screenshots/home.png)
+![Prediction](assets/screenshots/prediction.png)
+![Analytics](assets/screenshots/analytics.png)
+![Weather](assets/screenshots/weather.png)
+![History](assets/screenshots/history.png)
+![Feature Importance](assets/screenshots/feature_importance.png)
+```
 
-| Source | Description | URL |
-|---|---|---|
-| India Data Portal | Crop area, production, yield (APY) data | [Link](https://ckandev.indiadataportal.com/dataset/area-production-yield-apy/resource) |
-| Open-Meteo | Historical weather data (temperature, precipitation, humidity, wind) | [Link](https://open-meteo.com/) |
+---
 
-**Dataset Coverage**: 33 states, 685 districts, 90+ crops, 6 seasons, 2001–2020
+## 🔭 Future Improvements
+
+- Production-grade model monitoring and drift alerts
+- Region-specific calibration layers
+- Scenario simulation with forecast weather blends
+- Enhanced recommendation engine with agronomy heuristics
+- Dockerized one-click deployment and CI/CD quality gates
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m "feat: add amazing feature"`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
 
 ## 📄 License
 
-This project is for educational purposes.
+Licensed under the **MIT License**.
+
+---
+
+## 👤 Author
+
+- **Author Name**
+- **GitHub:** [GitHub Profile](https://github.com/your-username)
+- **LinkedIn:** [LinkedIn Profile](https://www.linkedin.com/in/your-profile)
+- **Email:** your.email@example.com
+
+---
+
+<div align="center">
+  <sub>Built with data, design, and machine learning for real-world agricultural intelligence.</sub>
+</div>
