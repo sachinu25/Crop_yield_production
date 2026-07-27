@@ -82,6 +82,8 @@ def render():
                 "area": area_in_ha,
                 "latitude": lat,
                 "longitude": lon,
+                "state_name": state,
+                "district_name": district,
                 **weather_summary
             }
             
