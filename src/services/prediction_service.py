@@ -107,7 +107,18 @@ def predict_yield_list(data: Dict[str, Any]) -> List[Dict[str, Any]]:
             input_pool = Pool(input_df, cat_features=CATBOOST_CAT)
             pred_log = model.predict(input_pool)
             pred = float(np.expm1(pred_log[0]))
-            results.append({"Crop": crop_name, "Yield": round(pred, 3)})
+            
+            # Compute SHAP using CatBoost built-in
+            shap_values = model.get_feature_importance(input_pool, type="ShapValues")[0]
+            
+            results.append({
+                "Crop": crop_name, 
+                "Yield": round(pred, 3),
+                "Features": input_df.iloc[0].to_dict(),
+                "ShapValues": shap_values[:-1].tolist(),
+                "ShapBaseValue": float(shap_values[-1]),
+                "FeatureNames": input_df.columns.tolist()
+            })
         except Exception as exc:
             logger.error("Prediction failed for crop '%s': %s", crop_name, exc)
             raise PredictionError(f"Prediction failed for crop '{crop_name}'") from exc
@@ -133,11 +144,14 @@ def _build_input_df(data: Dict[str, Any], crop_name: str) -> pd.DataFrame:
         'season': ssn,
         'crop': cn,
         'area': data["area"],
-        'temperature_2m_mean': data["temperature_2m_mean"],
-        'precipitation_sum': data["precipitation_sum"],
-        'relative_humidity_2m_mean': data["relative_humidity_2m_mean"],
-        'wind_speed_10m_mean': data["wind_speed_10m_mean"]
+        'latitude': data.get("latitude"),
+        'longitude': data.get("longitude"),
+        'temperature_2m_mean': data.get("temperature_2m_mean", 0.0),
+        'precipitation_sum': data.get("precipitation_sum", 0.0),
+        'relative_humidity_2m_mean': data.get("relative_humidity_2m_mean", 0.0),
+        'wind_speed_10m_mean': data.get("wind_speed_10m_mean", 0.0)
     }
+            
     df = pd.DataFrame([row])
     
     # 2. Join static features from lookup table
@@ -178,6 +192,12 @@ def _build_input_df(data: Dict[str, Any], crop_name: str) -> pd.DataFrame:
     # If the match was a fallback, fix up the dynamic static cols
     df['crop_season'] = df['crop'] + '_' + df['season']
     df['state_crop'] = df['state_name'] + '_' + df['crop']
+    
+    # Ensure season_sin and season_cos are computed correctly for the requested season
+    season_map = {'kharif': 0, 'rabi': 1, 'whole year': 2, 'summer': 3, 'winter': 4, 'autumn': 5}
+    season_ord = season_map.get(ssn, 2)
+    df['season_sin'] = np.sin(2 * np.pi * season_ord / 6)
+    df['season_cos'] = np.cos(2 * np.pi * season_ord / 6)
     
     # 3. Dynamic math features
     df['log_area'] = np.log1p(df['area'])

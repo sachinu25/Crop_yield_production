@@ -22,7 +22,7 @@ def render():
             district = st.selectbox("District", district_list, key="weather_dist")
             
         with c3:
-            year = st.selectbox("Year", list(range(2001, 2025)), index=20, key="weather_year")
+            year = st.selectbox("Year", list(range(2001, 2021)), index=19, key="weather_year")
             
         with c4:
             season = st.selectbox("Season", options["season_list"], key="weather_season")

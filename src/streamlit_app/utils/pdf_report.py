@@ -66,10 +66,10 @@ def generate_pdf_report(
         pdf.cell(0, 8, f"Crop: {crop}", ln=1)
         pdf.set_font('helvetica', '', 11)
         pdf.set_text_color(51, 65, 85)
-        pdf.cell(0, 8, f"• Predicted Yield: {yield_val:,.2f} Tonnes / Hectare", ln=1)
+        pdf.cell(0, 8, f"- Predicted Yield: {yield_val:,.2f} Tonnes / Hectare", ln=1)
         
         if 'Production' in pred:
-            pdf.cell(0, 8, f"• Estimated Total Production: {pred['Production']:,.2f} Tonnes", ln=1)
+            pdf.cell(0, 8, f"- Estimated Total Production: {pred['Production']:,.2f} Tonnes", ln=1)
         pdf.ln(5)
         
     # 3. Weather Profile
@@ -97,7 +97,8 @@ def generate_pdf_report(
         pdf.cell(0, 8, clean_title, ln=1)
         
         pdf.set_font('helvetica', '', 10)
-        pdf.multi_cell(0, 6, rec['text'])
+        clean_text = ''.join(c for c in rec['text'] if ord(c) < 128)
+        pdf.multi_cell(0, 6, clean_text)
         pdf.ln(3)
 
     return pdf.output(dest='S')

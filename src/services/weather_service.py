@@ -69,6 +69,7 @@ def fetch_weather_data(
         "start_date": start_date,
         "end_date": end_date,
         "daily": WEATHER_DAILY_VARIABLES,
+        "timezone": "auto",
     }
 
     try:
