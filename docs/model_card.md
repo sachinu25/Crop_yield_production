@@ -13,10 +13,10 @@
 - **Out of Scope**: Extreme catastrophic disaster forecasting without real-time weather API input.
 
 ## 3. Training & Evaluation Setup
-- **Dataset Size**: 249,495 records (2001–2020)
+- **Dataset Size**: 247,297 records after cleaning (2001–2020)
 - **Train/Test Split Strategy**: **Chronological Time-Series Split**
-  - **Training Set**: 2001–2017 (209,145 records)
-  - **Testing Set**: 2018–2020 (40,350 records)
+  - **Training Set**: 2001–2017 (211,683 records)
+  - **Testing Set**: 2018–2020 (35,614 records)
 - **Categorical Features**: `season`, `crop` (native CatBoost categorical encoding)
 - **Hyperparameters**:
   - `iterations`: 500
@@ -26,12 +26,16 @@
 
 ## 4. Model Performance Metrics (Out-of-Time Test Set: 2018–2020)
 
-| Metric | Score | Unit | Interpretation |
-|---|---|---|---|
-| **R² Score** | 0.8420 | Scale (0–1) | Explains ~84.2% of yield variance across districts |
-| **RMSE** | 0.6120 | Tonnes / Ha | Root Mean Squared Error on unscaled yield |
-| **MAE** | 0.3840 | Tonnes / Ha | Mean Absolute Error on unscaled yield |
-| **MAPE** | 18.50% | Percentage (%) | Mean Absolute Percentage Error |
+Verified by re-running the evaluation (see `experiments/RESULTS.md`):
+
+| Test set | Model | R² | MAE | RMSE |
+|---|---|---|---|---|
+| Full (35,614 rows) | CatBoost (notebook 07) | 0.605 | 1.42 | 10.01 |
+| Full | Naive baseline (last-3-year district+crop mean) | 0.580 | 1.54 | 10.33 |
+| Quality-filtered (35,479 rows) | LightGBM, log target + per-crop bias correction | 0.900 | 1.05 | 4.17 |
+| Quality-filtered | Naive baseline | 0.864 | 1.18 | 4.86 |
+
+The quality filter drops 135 test rows (0.38%) whose yield exceeds 2× that crop's training maximum. The threshold uses training data only. These rows cause 83% of the squared error on the full test set.
 
 ## 5. Feature Importance (SHAP Analysis Summary)
 

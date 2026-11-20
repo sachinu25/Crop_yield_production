@@ -63,3 +63,6 @@ logs/
 .pytest_cache/
 .coverage
 coverage.xml
+# Experiment outputs
+experiments/*.txt
+

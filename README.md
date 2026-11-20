@@ -126,21 +126,32 @@ The pipeline includes engineered features spanning:
 
 ## 📈 Model Performance
 
-From the current project documentation and evaluation artifacts:
+All numbers are **out-of-time**: models train on 2001–2017 and are scored on 2018–2020.
+Model choices were made on a separate dev split (train 2001–2014, validate 2015–2017).
+To reproduce, run [`experiments/`](experiments/) (details in [`experiments/RESULTS.md`](experiments/RESULTS.md)).
 
-| Metric | Value |
-|---|---|
-| R² Score | ~0.6047 |
-| RMSE | ~10.01 |
-| MAE | ~1.42 |
+| Model | Test set | R² | MAE | RMSE |
+|---|---|---|---|---|
+| Naive baseline (last-3-year district+crop mean) | full (35,614 rows) | 0.580 | 1.54 | 10.33 |
+| CatBoost (notebook 07) | full | 0.605 | 1.42 | 10.01 |
+| LightGBM, log target + per-crop bias correction | full | 0.602 | 1.42 | 10.05 |
+| Naive baseline | quality-filtered (35,479 rows) | 0.864 | 1.18 | 4.86 |
+| **LightGBM, log target + per-crop bias correction** | **quality-filtered** | **0.900** | **1.05** | **4.17** |
 
-### Metric Interpretation
-- **R² (Coefficient of Determination):** Explains how much variance in yield is captured by the model. A value near 0.60 indicates meaningful predictive signal in a high-variability domain like agriculture.
-- **RMSE (Root Mean Squared Error):** Penalizes larger errors more strongly and reflects prediction spread around true yield.
-- **MAE (Mean Absolute Error):** Average absolute prediction deviation; easier to interpret in practical yield terms.
+### Error analysis: why the full-test R² is ~0.60
+- **135 test rows (0.38%)** report yields above **2× the highest yield ever recorded for that crop in 17 training years**.
+  Example: guar seed at 485 t/ha, when its training maximum is 3.6 t/ha. These are almost certainly data-entry or unit errors.
+- Those 135 rows cause **83% of the total squared error**. Every model (and the naive baseline) is capped near R² 0.60 on the unfiltered test set.
+- The quality filter removes them using a threshold computed **from training data only**. On the remaining records, the model reaches **R² 0.90** and **~11% lower MAE** than the naive baseline.
 
-### CV Performance
-Cross-validation details should be sourced from model-training artifacts/checkpoints where available. If you add the exact CV table (fold-wise), update this section for publication-grade reporting.
+### Leakage checks
+- Lag features use only previous years (one-year-ahead forecasting).
+- Target encodings, KMeans geo-clusters and the climate PCA are fitted on training years only.
+
+### Metric interpretation
+- **R²:** share of yield variance explained by the model.
+- **MAE:** average absolute error in yield units. It is easier to interpret and robust to the outliers described above.
+- **RMSE:** penalises large errors heavily, so it is dominated by the few erroneous records on the full test set.
 
 ---
 
