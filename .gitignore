@@ -1,4 +1,4 @@
-# =========================
+﻿# =========================
 # Python
 # =========================
 __pycache__/
@@ -64,5 +64,5 @@ logs/
 .coverage
 coverage.xml
 # Experiment outputs
-experiments/*.txt
+experiments/lgbm_*.txt
 
