@@ -39,7 +39,7 @@ class Settings:
         "DATA_CSV_PATH", "data/processed/final_data_for_web.csv"
     )
     MODEL_PATH: Path = PROJECT_ROOT / os.getenv(
-        "MODEL_PATH", "models/CatBoost_best_final.cbm"
+        "MODEL_PATH", "models/lightgbm_model.txt"
     )
 
     # -- Logging --

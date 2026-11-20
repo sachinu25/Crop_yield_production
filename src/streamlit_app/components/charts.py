@@ -183,10 +183,8 @@ def season_donut(df: pd.DataFrame):
     return fig
 
 
-def feature_importance_bar(feature_names: list, shap_values: list, top_n: int = 12):
-    """Chart 7: Feature importance — Horizontal bar with English labels & color coding."""
-    # Human-readable feature name mapping
-    FEATURE_LABELS = {
+# Human-readable feature name mapping (shared by SHAP charts)
+FEATURE_LABELS = {
         'crop_year': 'Crop Year',
         'log_area': 'Cultivated Area (log)',
         'log_precip': 'Rainfall (log)',
@@ -249,6 +247,9 @@ def feature_importance_bar(feature_names: list, shap_values: list, top_n: int = 
         'geo_cluster_50': 'Geo Cluster (k=50)',
     }
 
+
+def feature_importance_bar(feature_names: list, shap_values: list, top_n: int = 12):
+    """Chart 7: Feature importance — Horizontal bar with English labels & color coding."""
     shap_df = pd.DataFrame({
         'Feature': feature_names,
         'SHAP Value': shap_values,
@@ -269,6 +270,62 @@ def feature_importance_bar(feature_names: list, shap_values: list, top_n: int = 
         xaxis_title="Impact on Prediction (log scale)",
         height=max(350, top_n * 32),
         showlegend=False,
+    )
+    return fig
+
+
+def shap_waterfall(feature_names: list, shap_values: list, base_value: float, top_n: int = 10):
+    """SHAP waterfall: from the model's average output to this prediction, step by step.
+
+    Values are in log1p(yield) space (the model's training target); the remaining
+    features are grouped into one 'Other features' step so the bars still sum exactly.
+    """
+    sv = np.asarray(shap_values, dtype=float)
+    order = np.argsort(-np.abs(sv))
+    top_idx, rest_idx = order[:top_n], order[top_n:]
+    labels = [FEATURE_LABELS.get(feature_names[i], feature_names[i]) for i in top_idx]
+    values = [float(sv[i]) for i in top_idx]
+    if len(rest_idx):
+        labels.append(f"Other {len(rest_idx)} features")
+        values.append(float(sv[rest_idx].sum()))
+    final = base_value + float(sv.sum())
+
+    fig = go.Figure(go.Waterfall(
+        orientation="h",
+        measure=["absolute"] + ["relative"] * len(values) + ["total"],
+        y=["Model average (log)"] + labels + ["This prediction (log)"],
+        x=[base_value] + values + [final],
+        text=[f"{base_value:.3f}"] + [f"{v:+.3f}" for v in values] + [f"{final:.3f}"],
+        textposition="outside", cliponaxis=False,
+        increasing=dict(marker=dict(color=COLORS['positive'])),
+        decreasing=dict(marker=dict(color=COLORS['negative'])),
+        totals=dict(marker=dict(color=COLORS['secondary'])),
+        connector=dict(line=dict(color="#cbd5e1", width=1)),
+    ))
+    fig.update_layout(
+        title="SHAP Waterfall — How Each Feature Moved This Prediction",
+        xaxis_title="log(1 + yield)  ·  green raises, red lowers the prediction",
+        yaxis=dict(autorange="reversed"),
+        margin=dict(l=40, r=70, t=50, b=40),
+        height=max(380, (len(values) + 2) * 34),
+        showlegend=False,
+    )
+    return fig
+
+
+def benchmark_r2_bar(benchmark: dict):
+    """Grouped bar: R² of each model before vs after the training-derived quality filter."""
+    names = list(benchmark.keys())
+    fig = go.Figure()
+    for key, label, color in [("full", "All test rows", COLORS['neutral']),
+                              ("quality_filtered", "Quality-filtered", COLORS['primary'])]:
+        vals = [benchmark[n][key]["r2"] for n in names]
+        fig.add_trace(go.Bar(x=names, y=vals, name=label, marker_color=color,
+                             text=[f"{v:.3f}" for v in vals], textposition="outside"))
+    fig.update_layout(
+        title="Out-of-Time R² (2018–2020): Before vs After Quality Filter",
+        yaxis=dict(title="R²", range=[0, 1.05]),
+        barmode="group", height=400,
     )
     return fig
 
@@ -389,6 +446,29 @@ def india_map(df: pd.DataFrame, selected_state: str = None, selected_district: s
 # ═══════════════════════════════════════════════════════════
 # ANALYTICS PAGE CHARTS
 # ═══════════════════════════════════════════════════════════
+
+def district_climate_yield_chart(yearly: pd.DataFrame, crop: str = None):
+    """Yearly rainfall anomaly (bars), temperature anomaly (line) and optional crop yield (right axis)."""
+    fig = go.Figure()
+    rain_colors = [COLORS['secondary'] if v >= 0 else COLORS['quaternary'] for v in yearly['rain_anomaly_pct']]
+    fig.add_trace(go.Bar(x=yearly['crop_year'], y=yearly['rain_anomaly_pct'], name='Rainfall anomaly (%)',
+                         marker_color=rain_colors, opacity=0.75))
+    fig.add_trace(go.Scatter(x=yearly['crop_year'], y=yearly['temp_anomaly'] * 10, name='Temp anomaly (°C × 10)',
+                             mode='lines+markers', line=dict(color=COLORS['danger'], width=2),
+                             customdata=yearly['temp_anomaly'],
+                             hovertemplate='%{x}: %{customdata:+.2f} °C<extra></extra>'))
+    if crop and 'crop_yield' in yearly and yearly['crop_yield'].notna().any():
+        fig.add_trace(go.Scatter(x=yearly['crop_year'], y=yearly['crop_yield'], name=f'{crop.title()} yield (T/Ha)',
+                                 mode='lines+markers', yaxis='y2', line=dict(color=COLORS['primary'], width=3)))
+    fig.update_layout(
+        title="Weather Anomalies and Yield by Year",
+        xaxis=dict(title="Year", dtick=2),
+        yaxis=dict(title="Anomaly"),
+        yaxis2=dict(title="Yield (T/Ha)", overlaying='y', side='right', showgrid=False),
+        height=420, barmode='relative',
+    )
+    return fig
+
 
 def weather_trend_chart(env_data: pd.DataFrame):
     """Multi-line weather trend chart."""

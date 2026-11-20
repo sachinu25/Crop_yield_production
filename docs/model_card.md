@@ -1,11 +1,12 @@
-# 📄 Model Card — CatBoost Crop Yield Regressor
+# 📄 Model Card — LightGBM Crop Yield Regressor
 
 ## 1. Model Details
 - **Developer**: Indian Agriculture ML Project
-- **Model Type**: Gradient Boosted Decision Trees (CatBoost Regressor)
-- **Model Version**: v1.0.0
-- **Model Artifact**: `models/catboost_best_model.cbm`
-- **Target Variable**: `np.log1p(crop_yield)` (Inverse log-transformed during inference)
+- **Model Type**: Gradient Boosted Decision Trees (LightGBM, Optuna-tuned)
+- **Model Version**: v3.0.0
+- **Model Artifacts**: `models/lightgbm_model.txt`, `models/lightgbm_artifacts.json`, `models/quality_thresholds.json`
+- **Target Variable**: `np.log1p(crop_yield)`; prediction = `(expm1(raw) + 1) * smearing[crop] - 1` (per-crop bias correction)
+- **Training script**: `scripts/train_lightgbm.py`
 
 ## 2. Intended Use
 - **Primary Use**: Estimating expected crop yield (tonnes/hectare) in Indian agricultural districts based on crop choice, season, area, and seasonal weather parameters.
@@ -17,25 +18,21 @@
 - **Train/Test Split Strategy**: **Chronological Time-Series Split**
   - **Training Set**: 2001–2017 (211,683 records)
   - **Testing Set**: 2018–2020 (35,614 records)
-- **Categorical Features**: `season`, `crop` (native CatBoost categorical encoding)
-- **Hyperparameters**:
-  - `iterations`: 500
-  - `learning_rate`: 0.08
-  - `depth`: 6
-  - `loss_function`: RMSE
+  - **Tuning**: Optuna (60 trials) on a dev split, train 2001–2014 / validate 2015–2017
+- **Features**: 60 (52 numerical + 8 categorical as LightGBM native categoricals)
 
 ## 4. Model Performance Metrics (Out-of-Time Test Set: 2018–2020)
 
-Verified by re-running the evaluation (see `experiments/RESULTS.md`):
+From `models/evaluation.json`:
 
-| Test set | Model | R² | MAE | RMSE |
+| Model | R² (all rows) | R² (quality-filtered) | MAE (filtered) | RMSE (filtered) |
 |---|---|---|---|---|
-| Full (35,614 rows) | CatBoost (notebook 07) | 0.605 | 1.42 | 10.01 |
-| Full | Naive baseline (last-3-year district+crop mean) | 0.580 | 1.54 | 10.33 |
-| Quality-filtered (35,479 rows) | LightGBM, log target + per-crop bias correction | 0.900 | 1.05 | 4.17 |
-| Quality-filtered | Naive baseline | 0.864 | 1.18 | 4.86 |
+| Naive baseline | 0.580 | 0.864 | 1.18 | 4.86 |
+| CatBoost | 0.605 | 0.900 | 1.06 | 4.16 |
+| XGBoost | 0.608 | 0.907 | 1.02 | 4.01 |
+| **LightGBM (production)** | **0.602** | **0.900** | **1.07** | **4.16** |
 
-The quality filter drops 135 test rows (0.38%) whose yield exceeds 2× that crop's training maximum. The threshold uses training data only. These rows cause 83% of the squared error on the full test set.
+The quality filter drops 135 test rows (0.38%) whose yield exceeds 2× that crop's training maximum. The threshold uses training data only. These rows cause 83% of the squared error on the full test set. LightGBM has 9.2% lower MAE than the naive baseline on the filtered set.
 
 ## 5. Feature Importance (SHAP Analysis Summary)
 

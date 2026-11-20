@@ -2,7 +2,8 @@
 Prediction Page — Executive Dashboard.
 
 After prediction, displays:
-  - 15+ real metrics from CatBoost output and dataset
+  - 15+ real metrics from LightGBM output and dataset
+  - Per-prediction SHAP waterfall (LightGBM native TreeSHAP)
   - 10 professional charts (all from real data)
   - Structured recommendations
   - India map with state highlight
@@ -11,6 +12,7 @@ After prediction, displays:
 NO fake data. NO random values. NO placeholder charts.
 """
 
+import logging
 import time
 import uuid
 from datetime import datetime
@@ -32,7 +34,7 @@ from src.streamlit_app.components.cards import (
 )
 from src.streamlit_app.components.charts import (
     yield_comparison_grouped_bar, yield_trend_line, district_ranking_bar,
-    crop_comparison_bar, season_donut, feature_importance_bar,
+    crop_comparison_bar, season_donut, feature_importance_bar, shap_waterfall,
     confidence_gauge, production_histogram, yield_heatmap, india_map,
 )
 from src.streamlit_app.utils.recommendations import generate_recommendations
@@ -174,7 +176,7 @@ def render():
             }
 
             # Run inference with timing
-            with st.spinner("Running CatBoost inference..."):
+            with st.spinner("Running LightGBM inference..."):
                 t_start = time.time()
                 predictions = predict_yield_list(pred_input)
                 inference_ms = (time.time() - t_start) * 1000
@@ -183,6 +185,7 @@ def render():
             yield_val_ha = result["Yield"]
             final_features = result["Features"]
             shap_values = result["ShapValues"]
+            shap_base = result["ShapBaseValue"]
             feature_names = result["FeatureNames"]
 
             # Use exact features from inference for weather display
@@ -331,9 +334,9 @@ def render():
                 executive_metric_table([
                     ("Prediction ID", prediction_id),
                     ("Timestamp", prediction_ts),
-                    ("Model Used", "CatBoost Regressor"),
-                    ("Model Version", "v2.0.0"),
-                    ("Target Transform", "log1p → expm1"),
+                    ("Model Used", "LightGBM (Optuna-tuned)"),
+                    ("Model Version", "v3.0.0"),
+                    ("Target Transform", "log1p → expm1 + per-crop bias correction"),
                 ])
             with col_meta2:
                 executive_metric_table([
@@ -449,11 +452,22 @@ def render():
             # Chart 7: Feature Importance (SHAP)
             section_header("🧠 Why This Prediction?",
                            "Feature importance shows how each input variable influenced the final yield prediction.")
-            try:
-                fig7 = feature_importance_bar(feature_names, shap_values)
-                st.plotly_chart(fig7, use_container_width=True)
-            except Exception:
-                pass  # Silently skip if SHAP visualization fails
+            tab_wf, tab_bar = st.tabs(["Waterfall", "Top features"])
+            with tab_wf:
+                try:
+                    st.plotly_chart(shap_waterfall(feature_names, shap_values, shap_base),
+                                    use_container_width=True)
+                    st.caption("SHAP values come from LightGBM's native TreeSHAP and sum exactly to the "
+                               "model output in log(1 + yield) space. Lag features (historical yields) and "
+                               "weather anomalies usually dominate.")
+                except Exception as exc:
+                    st.warning(f"SHAP waterfall unavailable: {exc}")
+            with tab_bar:
+                try:
+                    st.plotly_chart(feature_importance_bar(feature_names, shap_values),
+                                    use_container_width=True)
+                except Exception as exc:
+                    st.warning(f"SHAP chart unavailable: {exc}")
 
             # Chart 10: Heatmap — State × Season
             section_header("🗺 Yield Patterns")
@@ -556,5 +570,6 @@ def render():
                     use_container_width=True,
                 )
 
-        except Exception as e:
-            st.error(f"Prediction could not be completed. Please verify your inputs and try again.")
+        except Exception:
+            logging.getLogger(__name__).exception("Prediction page failed")
+            st.error("Prediction could not be completed. Please verify your inputs and try again.")

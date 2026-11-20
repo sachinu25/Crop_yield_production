@@ -32,7 +32,7 @@ WEATHER_DAILY_VARIABLES: str = (
 )
 
 # ---------------------------------------------------------------------------
-# CatBoost categorical feature names (used during inference)
+# Categorical feature names (used during inference)
 # ---------------------------------------------------------------------------
 CATBOOST_CAT_FEATURES: list = ["season", "crop"]
 

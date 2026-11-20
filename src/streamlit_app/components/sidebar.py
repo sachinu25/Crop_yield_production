@@ -22,6 +22,7 @@ def render_sidebar():
                 "🏠 Home",
                 "🔮 Prediction",
                 "📊 Analytics",
+                "📈 Model Performance",
                 "🌦 Weather",
                 "📜 History",
                 "ℹ About"
@@ -36,7 +37,7 @@ def render_sidebar():
 
         st.markdown('<div style="flex-grow: 1;"></div>', unsafe_allow_html=True)
         st.markdown(
-            '<div class="sidebar-version">v2.0.0 · CatBoost</div>',
+            '<div class="sidebar-version">v3.0.0 · LightGBM</div>',
             unsafe_allow_html=True
         )
 

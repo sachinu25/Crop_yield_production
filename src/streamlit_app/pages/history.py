@@ -8,6 +8,7 @@ import streamlit as st
 import pandas as pd
 
 from src.streamlit_app.components.cards import section_header
+from src.streamlit_app.utils.pdf_report import generate_history_pdf
 
 
 def render():
@@ -85,7 +86,7 @@ def render():
 
     # Action Buttons
     st.markdown("<br>", unsafe_allow_html=True)
-    b1, b2, b3, _ = st.columns([1, 1, 1, 1])
+    b1, b_pdf, b2, b3 = st.columns([1, 1, 1, 1])
 
     with b1:
         csv = filtered.to_csv(index=False).encode('utf-8')
@@ -94,6 +95,15 @@ def render():
             data=csv,
             file_name="agri_ai_prediction_history.csv",
             mime="text/csv",
+            use_container_width=True,
+        )
+
+    with b_pdf:
+        st.download_button(
+            label="📄 Download PDF",
+            data=generate_history_pdf(filtered.to_dict("records")),
+            file_name="agri_ai_prediction_history.pdf",
+            mime="application/pdf",
             use_container_width=True,
         )
 

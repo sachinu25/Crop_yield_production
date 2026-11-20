@@ -1,7 +1,7 @@
 """
 About Page — Professional project overview with architecture, ML pipeline, and metrics.
 
-All metrics from real model_meta.json. No fake numbers.
+All metrics come from models/evaluation.json (written by scripts/train_lightgbm.py). No hard-coded numbers.
 """
 
 import json
@@ -9,6 +9,7 @@ import streamlit as st
 
 from src.config.settings import PROJECT_ROOT
 from src.services.data_service import get_dataframe
+from src.utils.model_metrics import headline_metrics
 from src.streamlit_app.components.cards import metric_card, section_header
 
 
@@ -18,29 +19,25 @@ def render():
 
     # Load real stats
     df = get_dataframe()
+    hm = headline_metrics() or {}
     try:
-        with open(PROJECT_ROOT / "models" / "model_meta.json", 'r') as f:
-            meta = json.load(f)
+        with open(PROJECT_ROOT / "models" / "lightgbm_artifacts.json", 'r', encoding='utf-8') as f:
+            artifacts = json.load(f)
+        lgb_params = artifacts.get('params', {})
+        n_rounds = artifacts.get('num_boost_round')
     except Exception:
-        meta = {}
-
-    try:
-        with open(PROJECT_ROOT / "models" / "best_params.json", 'r') as f:
-            params = json.load(f)
-        cb_params = params.get('CatBoost', {})
-    except Exception:
-        cb_params = {}
+        lgb_params, n_rounds = {}, None
 
     # ── Platform Description ──
     st.markdown('''
     <div class="info-card">
         <div class="info-title">🌾 Agri AI — Intelligent Crop Yield Prediction Platform</div>
         <div class="info-text">
-            An enterprise-grade AI platform for agricultural yield forecasting across India.
+            An AI platform for agricultural yield forecasting across India.
             It integrates 20 years of historical crop production data with real-time weather APIs
-            to deliver accurate, explainable yield predictions. Built with production-ready
-            CatBoost ML and 60 engineered features including climate PCA, target encoding,
-            rolling averages, and interaction terms.
+            to deliver explainable yield predictions. Built with an Optuna-tuned LightGBM model
+            and 60 leak-free engineered features including lagged yields, weather anomalies,
+            out-of-fold target encoding, and climate PCA.
         </div>
     </div>
     ''', unsafe_allow_html=True)
@@ -58,18 +55,18 @@ def render():
          "PCA on climate variables, cyclic season encoding, target encoding (LOO, EWMA), "
          "rolling averages, GDD proxy, drought/heat/humidity indicators, geo-clustering"),
         ("3", "Hyperparameter Optimization",
-         f"Optuna-tuned CatBoost with {cb_params.get('iterations', 3786)} iterations, "
-         f"depth={cb_params.get('depth', 8)}, lr={cb_params.get('learning_rate', 0.073):.4f}, "
-         f"L2={cb_params.get('l2_leaf_reg', 23.1):.1f}, subsample={cb_params.get('subsample', 0.92):.3f}"),
+         f"Optuna-tuned LightGBM on a 2001–2014 / 2015–2017 dev split: {n_rounds or '—'} boosting rounds, "
+         f"num_leaves={lgb_params.get('num_leaves', '—')}, lr={lgb_params.get('learning_rate', 0):.4f}, "
+         f"min_child_samples={lgb_params.get('min_child_samples', '—')}"),
         ("4", "Model Training & Validation",
-         f"Trained on {meta.get('n_train', 211683):,} records ({meta.get('train_years', '2001-2017')}). "
-         f"Validated on {meta.get('n_test', 35614):,} records ({meta.get('test_years', '2018-2020')}). "
-         f"Target transform: log1p → expm1"),
+         f"Trained on {hm.get('n_train', 211683):,} records ({hm.get('train_years', '2001-2017')}). "
+         f"Tested out-of-time on {hm.get('n_test', 35614):,} records ({hm.get('test_years', '2018-2020')}) with a "
+         f"training-derived quality filter. Target: log1p with per-crop bias correction"),
         ("5", "Weather Integration",
          "Real-time weather from Open-Meteo Historical API (temperature, rainfall, humidity, wind). "
          "Automatic fallback to historical climate averages when live data is unavailable."),
         ("6", "SHAP Explainability",
-         "Per-prediction feature importance using CatBoost's native SHAP implementation. "
+         "Per-prediction SHAP waterfall using LightGBM's native TreeSHAP. "
          "Each prediction includes a breakdown of which features increased or decreased the yield estimate."),
     ]
 
@@ -106,20 +103,18 @@ def render():
         ''', unsafe_allow_html=True)
 
     with c2:
-        r2 = meta.get('best_r2', 0.6016)
-        rmse = meta.get('best_rmse', 10.05)
-        mae = meta.get('best_mae', 1.52)
+        fmt = lambda k, d=3: f"{hm[k]:.{d}f}" if k in hm else "—"  # noqa: E731
         st.markdown(f'''
         <div class="info-card">
-            <div class="info-title">🤖 Model Performance</div>
+            <div class="info-title">🤖 Model Performance (out-of-time, 2018–2020)</div>
             <div class="info-text">
                 <ul>
-                    <li><strong>Algorithm:</strong> CatBoost Regressor (Gradient Boosted Trees)</li>
-                    <li><strong>R² Score:</strong> {r2:.4f}</li>
-                    <li><strong>RMSE:</strong> {rmse:.4f}</li>
-                    <li><strong>MAE:</strong> {mae:.4f}</li>
+                    <li><strong>Algorithm:</strong> LightGBM (Optuna-tuned gradient boosted trees)</li>
+                    <li><strong>R², quality-filtered:</strong> {fmt('r2_clean')} · <strong>all rows:</strong> {fmt('r2_full')}</li>
+                    <li><strong>MAE, quality-filtered:</strong> {fmt('mae_clean')} T/Ha
+                        ({fmt('mae_gain_vs_baseline_pct', 1)}% lower than the naive baseline)</li>
                     <li><strong>Features:</strong> 60 (8 categorical + 52 numerical)</li>
-                    <li><strong>Target:</strong> log1p(yield) → expm1 inverse</li>
+                    <li><strong>Target:</strong> log1p(yield) with per-crop bias correction</li>
                 </ul>
             </div>
         </div>
@@ -156,7 +151,7 @@ def render():
     <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
         <span class="tech-badge">Python 3.12</span>
         <span class="tech-badge">Streamlit</span>
-        <span class="tech-badge">CatBoost</span>
+        <span class="tech-badge">LightGBM</span>
         <span class="tech-badge blue">Plotly</span>
         <span class="tech-badge blue">Pandas</span>
         <span class="tech-badge blue">NumPy</span>
@@ -172,7 +167,8 @@ def render():
     section_header("🔑 Key Design Decisions")
     decisions = [
         ("Log-transformed target", "Yield distribution is right-skewed. log1p transform normalizes residuals and improves gradient boosting performance."),
-        ("CatBoost over LightGBM/XGBoost", "CatBoost natively handles categorical features with CTR (Counter Target Rate), eliminating manual encoding for 8 categorical features."),
+        ("LightGBM in production", "Benchmarked against CatBoost and XGBoost out-of-time; LightGBM matches their accuracy with a smaller, faster model and native TreeSHAP, so the app needs no extra SHAP dependency."),
+        ("Training-derived quality filter", "Test rows with yields above 2× a crop's 2001–2017 maximum are flagged as data errors; thresholds use training years only, and metrics are reported both before and after filtering."),
         ("EWMA over simple mean", "Exponentially weighted moving average captures recent trends better than simple historical mean for yield forecasting."),
         ("PCA on climate", "Reduces multicollinearity between temperature, rainfall, humidity, and wind into 2 orthogonal components."),
         ("Graceful weather fallback", "If live API fails, historical climate averages are used automatically — prediction never stops."),
