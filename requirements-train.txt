@@ -1,0 +1,5 @@
+# Extra dependencies for retraining / benchmarking (scripts/train_lightgbm.py)
+-r requirements.txt
+optuna==4.1.0
+xgboost==3.2.0
+pytest==8.3.4

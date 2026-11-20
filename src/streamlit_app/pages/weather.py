@@ -11,7 +11,30 @@ import pandas as pd
 from src.services.data_service import get_dropdown_options, get_lat_lon, get_dataframe
 from src.services.weather_service import fetch_weather_data
 from src.streamlit_app.components.cards import metric_card, section_header, weather_banner
-from src.streamlit_app.components.charts import weather_trend_chart
+from src.streamlit_app.components.charts import weather_trend_chart, district_climate_yield_chart
+
+
+def _render_district_history(state: str, district: str, crop: str | None) -> None:
+    """2001-2020 weather anomalies and (optionally) crop yield for the selected district."""
+    df = get_dataframe()
+    hist = df[(df["state_name"] == state.lower()) & (df["district_name"] == district.lower())]
+    if hist.empty:
+        return
+    yearly = hist.groupby("crop_year").agg(
+        temperature=("temperature_2m_mean", "mean"),
+        rainfall=("precipitation_sum", "mean"),
+    ).reset_index()
+    yearly["temp_anomaly"] = yearly["temperature"] - yearly["temperature"].mean()
+    yearly["rain_anomaly_pct"] = 100 * (yearly["rainfall"] / yearly["rainfall"].mean() - 1)
+    if crop:
+        cy = hist[hist["crop"].str.lower() == crop.lower()].groupby("crop_year")["crop_yield"].mean()
+        yearly["crop_yield"] = yearly["crop_year"].map(cy)
+
+    section_header("📉 Weather Anomalies vs Yield (2001–2020)",
+                   f"{district.title()}, {state.title()}"
+                   + (f" · {crop.title()} yield on the right axis" if crop else "")
+                   + " · anomalies are relative to the district's 20-year mean")
+    st.plotly_chart(district_climate_yield_chart(yearly, crop), use_container_width=True)
 
 
 def render():
@@ -34,6 +57,8 @@ def render():
         with c4:
             season = st.selectbox("Season", options["season_list"], key="weather_season")
 
+        crop = st.selectbox("Crop (optional — overlays its yield on the trend chart)",
+                            options["crop_list"], index=None, placeholder="Any crop", key="weather_crop")
         fetch = st.button("🌍 Fetch Weather Data", use_container_width=True)
 
     if fetch and state and district and year and season:
@@ -104,6 +129,7 @@ def render():
                 })
                 st.dataframe(yearly_display, use_container_width=True, hide_index=True)
 
+            _render_district_history(state, district, crop)
             return
 
         # ── Live Data Display ──
@@ -132,3 +158,5 @@ def render():
             display_df = env_data.copy()
             display_df.columns = ['Lat', 'Lon', 'Date', 'Rainfall (mm)', 'Humidity (%)', 'Temp (°C)', 'Wind (m/s)']
             st.dataframe(display_df, use_container_width=True, hide_index=True)
+
+        _render_district_history(state, district, crop)

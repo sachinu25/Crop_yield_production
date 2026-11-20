@@ -1,0 +1,162 @@
+{
+ "generated": "2026-11-20",
+ "production_model": "LightGBM (Optuna)",
+ "split": {
+  "train_years": "2001-2017",
+  "test_years": "2018-2020",
+  "dev_split": "train 2001-2014 / validate 2015-2017",
+  "n_train": 211683,
+  "n_test": 35614,
+  "n_features": 60
+ },
+ "optuna": {
+  "trials": 60,
+  "best_dev_r2": 0.8871
+ },
+ "quality_rule": "drop test rows with yield > 2x the crop's training maximum",
+ "benchmark": {
+  "Naive baseline": {
+   "full": {
+    "r2": 0.5797,
+    "rmse": 10.3261,
+    "mae": 1.5443,
+    "median_ape_pct": 16.32,
+    "n": 35614
+   },
+   "quality_filtered": {
+    "r2": 0.8636,
+    "rmse": 4.8592,
+    "mae": 1.1797,
+    "median_ape_pct": 16.21,
+    "n": 35479
+   }
+  },
+  "CatBoost": {
+   "full": {
+    "r2": 0.6047,
+    "rmse": 10.0143,
+    "mae": 1.4211,
+    "median_ape_pct": 17.13,
+    "n": 35614
+   },
+   "quality_filtered": {
+    "r2": 0.9002,
+    "rmse": 4.1572,
+    "mae": 1.0574,
+    "median_ape_pct": 17.02,
+    "n": 35479
+   }
+  },
+  "XGBoost": {
+   "full": {
+    "r2": 0.6082,
+    "rmse": 9.9695,
+    "mae": 1.3887,
+    "median_ape_pct": 16.27,
+    "n": 35614
+   },
+   "quality_filtered": {
+    "r2": 0.907,
+    "rmse": 4.0125,
+    "mae": 1.0234,
+    "median_ape_pct": 16.2,
+    "n": 35479
+   }
+  },
+  "LightGBM (Optuna)": {
+   "full": {
+    "r2": 0.6018,
+    "rmse": 10.0512,
+    "mae": 1.4388,
+    "median_ape_pct": 17.65,
+    "n": 35614
+   },
+   "quality_filtered": {
+    "r2": 0.8999,
+    "rmse": 4.1629,
+    "mae": 1.0714,
+    "median_ape_pct": 17.55,
+    "n": 35479
+   }
+  }
+ },
+ "mae_reduction_vs_baseline_pct": 9.2,
+ "error_analysis": {
+  "flagged_rows": 135,
+  "flagged_pct_of_test": 0.38,
+  "flagged_share_of_squared_error_pct": 82.9,
+  "worst_errors": [
+   {
+    "crop": "guar seed",
+    "year": 2019,
+    "actual": 485.0,
+    "predicted": 1.79,
+    "train_max": 3.64
+   },
+   {
+    "crop": "groundnut",
+    "year": 2018,
+    "actual": 429.67,
+    "predicted": 1.2,
+    "train_max": 9.31
+   },
+   {
+    "crop": "other  rabi pulses",
+    "year": 2019,
+    "actual": 393.0,
+    "predicted": 1.59,
+    "train_max": 6.51
+   },
+   {
+    "crop": "castor seed",
+    "year": 2018,
+    "actual": 358.0,
+    "predicted": 1.64,
+    "train_max": 8.86
+   },
+   {
+    "crop": "castor seed",
+    "year": 2019,
+    "actual": 357.0,
+    "predicted": 2.05,
+    "train_max": 8.86
+   },
+   {
+    "crop": "niger seed",
+    "year": 2018,
+    "actual": 347.0,
+    "predicted": 1.26,
+    "train_max": 3.59
+   },
+   {
+    "crop": "niger seed",
+    "year": 2018,
+    "actual": 347.0,
+    "predicted": 1.28,
+    "train_max": 3.59
+   },
+   {
+    "crop": "black pepper",
+    "year": 2018,
+    "actual": 347.0,
+    "predicted": 2.82,
+    "train_max": 11.95
+   },
+   {
+    "crop": "maize",
+    "year": 2018,
+    "actual": 344.19,
+    "predicted": 2.05,
+    "train_max": 20.93
+   },
+   {
+    "crop": "moong(green gram)",
+    "year": 2019,
+    "actual": 344.0,
+    "predicted": 2.28,
+    "train_max": 3.51
+   }
+  ]
+ },
+ "baseline_description": "naive forecast: last-3-year mean yield of the same district + crop"
+}

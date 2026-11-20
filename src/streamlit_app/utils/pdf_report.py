@@ -25,7 +25,7 @@ class CropReportPDF(FPDF):
 
         self.set_font('helvetica', '', 9)
         self.set_text_color(100, 116, 139)
-        self.cell(0, 6, f'Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")} | Model: CatBoost v2.0.0', border=0, ln=1, align='C')
+        self.cell(0, 6, f'Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")} | Model: LightGBM v3.0.0', border=0, ln=1, align='C')
 
         self.set_draw_color(226, 232, 240)
         self.line(10, 28, 200, 28)
@@ -106,7 +106,7 @@ def generate_pdf_report(
             ("Yield Improvement", f"{exec_metrics.get('improvement_pct', 0):+.1f}%"),
             ("Confidence Level", exec_metrics.get('confidence', 'N/A')),
             ("Prediction ID", exec_metrics.get('prediction_id', 'N/A')),
-            ("Model Used", "CatBoost Regressor v2.0.0"),
+            ("Model Used", "LightGBM (Optuna-tuned) v3.0.0"),
             ("Weather Source", exec_metrics.get('weather_source', 'N/A')),
             ("Inference Time", f"{exec_metrics.get('inference_ms', 0):.0f} ms"),
         ]
@@ -145,15 +145,43 @@ def generate_pdf_report(
         pdf.set_font('helvetica', '', 9)
         pdf.set_text_color(71, 85, 105)
         clean_text = ''.join(c for c in rec.get('text', '') if ord(c) < 128)
-        pdf.multi_cell(0, 5, clean_text)
+        pdf.multi_cell(0, 5, clean_text, new_x="LMARGIN", new_y="NEXT")
 
         rationale = rec.get('rationale', '')
         if rationale:
             pdf.set_font('helvetica', 'I', 8)
             pdf.set_text_color(148, 163, 184)
             clean_rationale = ''.join(c for c in rationale if ord(c) < 128)
-            pdf.multi_cell(0, 5, f"Rationale: {clean_rationale}")
+            pdf.multi_cell(0, 5, f"Rationale: {clean_rationale}", new_x="LMARGIN", new_y="NEXT")
 
         pdf.ln(2)
 
-    return pdf.output(dest='S')
+    return bytes(pdf.output())
+
+
+def generate_history_pdf(history: List[Dict[str, Any]]) -> bytes:
+    """Session prediction history as a formatted PDF table."""
+    cols = [("Timestamp", 38), ("State", 26), ("District", 28), ("Crop", 28),
+            ("Season", 20), ("Year", 12), ("Yield (T/Ha)", 20), ("Confidence", 18)]
+    pdf = CropReportPDF()
+    pdf.add_page()
+    pdf.section_title(1, f"Prediction History ({len(history)} records)")
+
+    pdf.set_font('helvetica', 'B', 8)
+    pdf.set_fill_color(241, 245, 249)
+    pdf.set_text_color(15, 23, 42)
+    for name, w in cols:
+        pdf.cell(w, 7, name, border=1, fill=True)
+    pdf.ln()
+
+    pdf.set_font('helvetica', '', 8)
+    pdf.set_text_color(51, 65, 85)
+    for row in history:
+        for name, w in cols:
+            val = row.get(name, "")
+            text = f"{val:.3f}" if isinstance(val, float) else str(val)
+            text = ''.join(c for c in text if ord(c) < 128)[: int(w / 1.6)]
+            pdf.cell(w, 6, text, border=1)
+        pdf.ln()
+
+    return bytes(pdf.output())

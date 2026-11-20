@@ -1,11 +1,12 @@
-# 📄 Model Card — CatBoost Crop Yield Regressor
+# 📄 Model Card — LightGBM Crop Yield Regressor
 
 ## 1. Model Details
 - **Developer**: Indian Agriculture ML Project
-- **Model Type**: Gradient Boosted Decision Trees (CatBoost Regressor)
-- **Model Version**: v1.0.0
-- **Model Artifact**: `models/catboost_best_model.cbm`
-- **Target Variable**: `np.log1p(crop_yield)` (Inverse log-transformed during inference)
+- **Model Type**: Gradient Boosted Decision Trees (LightGBM, Optuna-tuned)
+- **Model Version**: v3.0.0
+- **Model Artifacts**: `models/lightgbm_model.txt`, `models/lightgbm_artifacts.json`, `models/quality_thresholds.json`
+- **Target Variable**: `np.log1p(crop_yield)`; prediction = `(expm1(raw) + 1) * smearing[crop] - 1` (per-crop bias correction)
+- **Training script**: `scripts/train_lightgbm.py`
 
 ## 2. Intended Use
 - **Primary Use**: Estimating expected crop yield (tonnes/hectare) in Indian agricultural districts based on crop choice, season, area, and seasonal weather parameters.
@@ -13,25 +14,25 @@
 - **Out of Scope**: Extreme catastrophic disaster forecasting without real-time weather API input.
 
 ## 3. Training & Evaluation Setup
-- **Dataset Size**: 249,495 records (2001–2020)
+- **Dataset Size**: 247,297 records after cleaning (2001–2020)
 - **Train/Test Split Strategy**: **Chronological Time-Series Split**
-  - **Training Set**: 2001–2017 (209,145 records)
-  - **Testing Set**: 2018–2020 (40,350 records)
-- **Categorical Features**: `season`, `crop` (native CatBoost categorical encoding)
-- **Hyperparameters**:
-  - `iterations`: 500
-  - `learning_rate`: 0.08
-  - `depth`: 6
-  - `loss_function`: RMSE
+  - **Training Set**: 2001–2017 (211,683 records)
+  - **Testing Set**: 2018–2020 (35,614 records)
+  - **Tuning**: Optuna (60 trials) on a dev split, train 2001–2014 / validate 2015–2017
+- **Features**: 60 (52 numerical + 8 categorical as LightGBM native categoricals)
 
 ## 4. Model Performance Metrics (Out-of-Time Test Set: 2018–2020)
 
-| Metric | Score | Unit | Interpretation |
-|---|---|---|---|
-| **R² Score** | 0.8420 | Scale (0–1) | Explains ~84.2% of yield variance across districts |
-| **RMSE** | 0.6120 | Tonnes / Ha | Root Mean Squared Error on unscaled yield |
-| **MAE** | 0.3840 | Tonnes / Ha | Mean Absolute Error on unscaled yield |
-| **MAPE** | 18.50% | Percentage (%) | Mean Absolute Percentage Error |
+From `models/evaluation.json`:
+
+| Model | R² (all rows) | R² (quality-filtered) | MAE (filtered) | RMSE (filtered) |
+|---|---|---|---|---|
+| Naive baseline | 0.580 | 0.864 | 1.18 | 4.86 |
+| CatBoost | 0.605 | 0.900 | 1.06 | 4.16 |
+| XGBoost | 0.608 | 0.907 | 1.02 | 4.01 |
+| **LightGBM (production)** | **0.602** | **0.900** | **1.07** | **4.16** |
+
+The quality filter drops 135 test rows (0.38%) whose yield exceeds 2× that crop's training maximum. The threshold uses training data only. These rows cause 83% of the squared error on the full test set. LightGBM has 9.2% lower MAE than the naive baseline on the filtered set.
 
 ## 5. Feature Importance (SHAP Analysis Summary)
 

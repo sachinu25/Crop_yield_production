@@ -3,8 +3,8 @@ Agri AI — Premium Crop Yield Prediction Platform v2.0
 
 Production-ready Streamlit application with:
   - Light mode default, dark mode toggle
-  - 6 pages: Home, Prediction, Analytics, Weather, History, About
-  - CatBoost ML model (FINAL — not modified)
+  - 7 pages: Home, Prediction, Analytics, Model Performance, Weather, History, About
+  - Optuna-tuned LightGBM model with native SHAP explanations
   - Professional CSS design system
 """
 
@@ -21,7 +21,7 @@ if _project_root not in sys.path:
 
 # Import components & pages
 from src.streamlit_app.components.sidebar import render_sidebar
-from src.streamlit_app.pages import home, prediction, analytics, weather, history, about
+from src.streamlit_app.pages import home, prediction, analytics, performance, weather, history, about
 
 # ===========================================================================
 # PAGE CONFIGURATION
@@ -148,6 +148,8 @@ elif app_mode == "🔮 Prediction":
     prediction.render()
 elif app_mode == "📊 Analytics":
     analytics.render()
+elif app_mode == "📈 Model Performance":
+    performance.render()
 elif app_mode == "🌦 Weather":
     weather.render()
 elif app_mode == "📜 History":

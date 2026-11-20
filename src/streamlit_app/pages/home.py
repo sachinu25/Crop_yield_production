@@ -5,11 +5,10 @@ Displays real platform stats from the dataset and model metadata.
 No fake data or placeholders.
 """
 
-import json
 import streamlit as st
 
-from src.config.settings import PROJECT_ROOT
 from src.services.data_service import get_dataframe
+from src.utils.model_metrics import headline_metrics
 from src.streamlit_app.components.hero import render_full_hero
 from src.streamlit_app.components.cards import metric_card, section_header
 
@@ -25,22 +24,8 @@ def _load_platform_stats():
     n_seasons = df['season'].nunique()
     year_range = f"{int(df['crop_year'].min())}–{int(df['crop_year'].max())}"
 
-    # Load model metrics
-    try:
-        meta_path = PROJECT_ROOT / "models" / "model_meta.json"
-        with open(meta_path, 'r') as f:
-            meta = json.load(f)
-        r2 = meta.get('best_r2', 0.6016)
-        rmse = meta.get('best_rmse', 10.05)
-        mae = meta.get('best_mae', 1.52)
-        n_train = meta.get('n_train', 0)
-        n_test = meta.get('n_test', 0)
-        train_years = meta.get('train_years', '')
-        test_years = meta.get('test_years', '')
-    except Exception:
-        r2, rmse, mae = 0.6016, 10.05, 1.52
-        n_train, n_test = 211683, 35614
-        train_years, test_years = "2001-2017", "2018-2020"
+    # Model metrics: single source of truth = models/evaluation.json
+    hm = headline_metrics() or {}
 
     return {
         'total_records': total_records,
@@ -49,13 +34,9 @@ def _load_platform_stats():
         'n_crops': n_crops,
         'n_seasons': n_seasons,
         'year_range': year_range,
-        'r2': r2,
-        'rmse': rmse,
-        'mae': mae,
-        'n_train': n_train,
-        'n_test': n_test,
-        'train_years': train_years,
-        'test_years': test_years,
+        'metrics': hm,
+        'n_train': hm.get('n_train', 0),
+        'train_years': hm.get('train_years', '2001-2017'),
     }
 
 
@@ -64,11 +45,12 @@ def render():
     stats = _load_platform_stats()
 
     # Hero Section
+    hm = stats['metrics']
     render_full_hero(
         total_records=stats['total_records'],
         states=stats['n_states'],
         crops=stats['n_crops'],
-        r2=stats['r2'],
+        r2=hm.get('r2_clean'),
     )
 
     # Quick Stats Row
@@ -89,22 +71,26 @@ def render():
     with c6:
         metric_card("Data Coverage", stats['year_range'], "📅")
     with c7:
-        metric_card("Engineered Features", "60", "⚙")
+        metric_card("Engineered Features", str(hm.get('n_features', 60)), "⚙")
     with c8:
-        metric_card("Model Type", "CatBoost", "🤖")
+        metric_card("Model Type", "LightGBM", "🤖")
 
     # Model Performance Section
-    section_header("🎯 Model Performance", "CatBoost Regressor — Production Metrics")
+    section_header("🎯 Model Performance",
+                   "Optuna-tuned LightGBM · out-of-time test on 2018–2020 · details on the 📈 Model Performance page")
 
-    c_m1, c_m2, c_m3, c_m4 = st.columns(4)
-    with c_m1:
-        metric_card("R² Score", f"{stats['r2']:.4f}", "📈")
-    with c_m2:
-        metric_card("RMSE", f"{stats['rmse']:.2f}", "📉")
-    with c_m3:
-        metric_card("MAE", f"{stats['mae']:.4f}", "📊")
-    with c_m4:
-        metric_card("Training Size", f"{stats['n_train']:,}", "🏋")
+    if hm:
+        c_m1, c_m2, c_m3, c_m4 = st.columns(4)
+        with c_m1:
+            metric_card("R² (quality-filtered)", f"{hm['r2_clean']:.3f}", "📈")
+        with c_m2:
+            metric_card("MAE vs naive baseline", f"−{hm['mae_gain_vs_baseline_pct']:.1f}%", "📉")
+        with c_m3:
+            metric_card("R² (all test rows)", f"{hm['r2_full']:.3f}", "📊")
+        with c_m4:
+            metric_card("Training Size", f"{stats['n_train']:,}", "🏋")
+    else:
+        st.info("Model metrics are unavailable — run scripts/train_lightgbm.py to generate models/evaluation.json.")
 
     # Architecture Overview
     section_header("🏗 Architecture Overview", "End-to-end ML pipeline from data to prediction")
@@ -112,9 +98,9 @@ def render():
     steps = [
         ("1", "Data Collection", "20 years of crop production data (2001–2020) across 33 states, 685 districts, and 106 crops"),
         ("2", "Feature Engineering", "60 features including climate PCA, target encoding, rolling averages, GDD proxy, interaction terms"),
-        ("3", "CatBoost Training", f"3,786 iterations with Optuna-optimized hyperparameters. Trained on {stats['n_train']:,} records ({stats['train_years']})"),
+        ("3", "LightGBM Training", f"Optuna-tuned on a 2001–2014 / 2015–2017 dev split, refit on {stats['n_train']:,} records ({stats['train_years']}), with a training-derived data-quality filter"),
         ("4", "Weather Integration", "Real-time weather from Open-Meteo API with automatic fallback to historical averages"),
-        ("5", "SHAP Explainability", "Feature importance computed per prediction using CatBoost's native SHAP implementation"),
+        ("5", "SHAP Explainability", "Per-prediction SHAP waterfall from LightGBM's native TreeSHAP"),
         ("6", "Inference & Dashboard", f"Sub-second prediction with executive dashboard, 10 analytics charts, and PDF reporting"),
     ]
 

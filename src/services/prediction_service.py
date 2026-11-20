@@ -1,28 +1,24 @@
 """
-Prediction service — loads CatBoost model and runs crop yield inference.
+Prediction service — loads the production LightGBM model and runs crop yield inference.
 
-This module replaces the `predicction()` function (note: typo fixed) that was
-duplicated in both Flask helper.py and Streamlit Helper/helper.py.
+Artifacts (produced by scripts/train_lightgbm.py, loaded once and cached):
+    models/lightgbm_model.txt        — trained booster (target = log1p(yield))
+    models/lightgbm_artifacts.json   — feature order, category levels, per-crop smearing factors
+    models/inference_lookup.parquet  — historical lag / encoding features per district-crop-season
+    models/pca_info.json             — climate scaler + PCA components
 
-Bugs fixed:
-    - Typo: predicction -> prediction (was in both files)
-    - Consistent area handling: both apps now use the same transform
-    - Model loaded once and reused (not re-loaded on every import)
-
-Design decisions:
-    - Model is loaded lazily on first call, not at module import time.
-      This prevents import-time crashes if the model file is missing
-      and allows better error messages.
-    - Added comprehensive feature engineering for the 60-feature model.
+Explainability uses LightGBM's native TreeSHAP (`pred_contrib=True`), so no
+extra SHAP dependency is needed at runtime. Contributions are in log1p(yield)
+space and sum exactly to the raw model output.
 """
 
 import logging
 import json
 from typing import Any, Dict, List, Optional
 
+import lightgbm as lgb  # import before pandas (avoids a DLL load-order crash on some Windows setups)
 import numpy as np
 import pandas as pd
-from catboost import CatBoostRegressor, Pool
 
 from src.config.settings import settings, PROJECT_ROOT
 from src.utils.exceptions import PredictionError
@@ -30,24 +26,26 @@ from src.utils.exceptions import PredictionError
 logger = logging.getLogger(__name__)
 
 # Module-level caches (lazy-loaded)
-_model: Optional[CatBoostRegressor] = None
+_model: Optional[lgb.Booster] = None
+_artifacts: Optional[Dict] = None
 _lookup: Optional[pd.DataFrame] = None
 _pca_info: Optional[Dict] = None
 
 
 def _load_resources():
     """Load model, lookup table, and PCA info."""
-    global _model, _lookup, _pca_info
-    
+    global _model, _artifacts, _lookup, _pca_info
+
     if _model is None:
-        model_path = str(settings.MODEL_PATH)
-        logger.info("Loading CatBoost model from %s", model_path)
+        model_path = settings.MODEL_PATH
+        logger.info("Loading LightGBM model from %s", model_path)
         try:
-            _model = CatBoostRegressor()
-            _model.load_model(model_path)
+            _model = lgb.Booster(model_file=str(model_path))
+            with open(PROJECT_ROOT / "models" / "lightgbm_artifacts.json", "r", encoding="utf-8") as f:
+                _artifacts = json.load(f)
         except Exception as exc:
-            raise PredictionError(f"Could not load CatBoost model from {model_path}") from exc
-            
+            raise PredictionError(f"Could not load LightGBM model from {model_path}") from exc
+
     if _lookup is None:
         try:
             lookup_path = PROJECT_ROOT / "models" / "inference_lookup.parquet"
@@ -66,6 +64,21 @@ def _load_resources():
     return _model, _lookup, _pca_info
 
 
+def _to_model_frame(input_df: pd.DataFrame) -> pd.DataFrame:
+    """Apply the training-time feature order and categorical levels."""
+    _load_resources()
+    X = input_df[_artifacts["features"]].copy()
+    for c in _artifacts["categorical"]:
+        X[c] = pd.Categorical(X[c].astype(str), categories=_artifacts["category_levels"][c])
+    return X
+
+
+def _to_yield(raw_log_pred: float, crop: str) -> float:
+    """Invert log1p and apply the per-crop smearing (bias) correction."""
+    factor = _artifacts["smearing"].get(crop, 1.0)
+    return max(0.0, float((np.expm1(raw_log_pred) + 1.0) * factor - 1.0))
+
+
 def predict_yield(data: Dict[str, Any]) -> Dict[str, float]:
     """Predict crop yield for one or more crops (Flask app)."""
     model, _, _ = _load_resources()
@@ -74,16 +87,8 @@ def predict_yield(data: Dict[str, Any]) -> Dict[str, float]:
     for crop_name in data["crop"]:
         try:
             input_df = _build_input_df(data, crop_name)
-            
-            # The model expects exactly these categorical features
-            CATBOOST_CAT = ['season', 'crop', 'state_name', 'crop_season', 'state_crop', 'geo_cluster_10', 'geo_cluster_30', 'geo_cluster_50']
-            for c in CATBOOST_CAT:
-                input_df[c] = input_df[c].astype(str)
-                
-            input_pool = Pool(input_df, cat_features=CATBOOST_CAT)
-            pred_log = model.predict(input_pool)
-            pred = float(np.expm1(pred_log[0]))
-            predictions[crop_name] = round(pred, 3)
+            raw = model.predict(_to_model_frame(input_df))[0]
+            predictions[crop_name] = round(_to_yield(raw, input_df["crop"].iloc[0]), 3)
         except Exception as exc:
             logger.error("Prediction failed for crop '%s': %s", crop_name, exc)
             raise PredictionError(f"Prediction failed for crop '{crop_name}'") from exc
@@ -92,32 +97,25 @@ def predict_yield(data: Dict[str, Any]) -> Dict[str, float]:
 
 
 def predict_yield_list(data: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Predict crop yield for one or more crops (Streamlit app)."""
+    """Predict crop yield for one or more crops, with per-prediction SHAP values (Streamlit app)."""
     model, _, _ = _load_resources()
     results: List[Dict[str, Any]] = []
 
     for crop_name in data["crop"]:
         try:
             input_df = _build_input_df(data, crop_name)
-            
-            CATBOOST_CAT = ['season', 'crop', 'state_name', 'crop_season', 'state_crop', 'geo_cluster_10', 'geo_cluster_30', 'geo_cluster_50']
-            for c in CATBOOST_CAT:
-                input_df[c] = input_df[c].astype(str)
-                
-            input_pool = Pool(input_df, cat_features=CATBOOST_CAT)
-            pred_log = model.predict(input_pool)
-            pred = float(np.expm1(pred_log[0]))
-            
-            # Compute SHAP using CatBoost built-in
-            shap_values = model.get_feature_importance(input_pool, type="ShapValues")[0]
-            
+            X = _to_model_frame(input_df)
+            raw = float(model.predict(X)[0])
+            # Native TreeSHAP: one value per feature + the expected value (last column)
+            contrib = model.predict(X, pred_contrib=True)[0]
+
             results.append({
-                "Crop": crop_name, 
-                "Yield": round(pred, 3),
+                "Crop": crop_name,
+                "Yield": round(_to_yield(raw, input_df["crop"].iloc[0]), 3),
                 "Features": input_df.iloc[0].to_dict(),
-                "ShapValues": shap_values[:-1].tolist(),
-                "ShapBaseValue": float(shap_values[-1]),
-                "FeatureNames": input_df.columns.tolist()
+                "ShapValues": contrib[:-1].tolist(),
+                "ShapBaseValue": float(contrib[-1]),
+                "FeatureNames": list(X.columns),
             })
         except Exception as exc:
             logger.error("Prediction failed for crop '%s': %s", crop_name, exc)
@@ -127,7 +125,7 @@ def predict_yield_list(data: Dict[str, Any]) -> List[Dict[str, Any]]:
 
 
 def _build_input_df(data: Dict[str, Any], crop_name: str) -> pd.DataFrame:
-    """Build the full 60-feature DataFrame for CatBoost inference."""
+    """Build the full 60-feature DataFrame used by the model."""
     _, lookup, pca_info = _load_resources()
     
     # 1. Base values

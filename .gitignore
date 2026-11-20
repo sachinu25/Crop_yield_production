@@ -1,4 +1,4 @@
-# =========================
+﻿# =========================
 # Python
 # =========================
 __pycache__/
@@ -63,3 +63,6 @@ logs/
 .pytest_cache/
 .coverage
 coverage.xml
+# Experiment outputs
+experiments/lgbm_*.txt
+
